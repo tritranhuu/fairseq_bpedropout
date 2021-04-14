@@ -37,7 +37,7 @@ from fairseq.model_parallel.megatron_trainer import MegatronTrainer
 from fairseq.trainer import Trainer
 from omegaconf import DictConfig, OmegaConf
 
-import sentencepiese as spm
+import sentencepiece as spm
 
 logging.basicConfig(
     format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
@@ -75,7 +75,7 @@ def get_sentencepiece_tokenizer(model_path: str, alpha: float=0.1, n_best: int=6
                                     nbest_size=n_best)
     return tok_func
 
-def get_bpe_tokenize(code_path: str, alpha: float = 0.1, collo_drop_rate = None):
+def get_bpe_tokenizer(model_path: str, alpha: float = 0.1, collo_drop_rate = None):
     """
     Get bpe-typed tokenize function with a dropout rate for a string as input
 
@@ -84,7 +84,7 @@ def get_bpe_tokenize(code_path: str, alpha: float = 0.1, collo_drop_rate = None)
     :return:
         - tok_func: tokenize function
     """
-    merge_table = load_subword_nmt_table(code_path)
+    merge_table = load_subword_nmt_table(model_path)
     subword_nmt_tokenizer = BpeOnlineTokenizer(
         bpe_dropout_rate=alpha,
         merge_table=merge_table)
@@ -336,7 +336,7 @@ def train(
         with metrics.aggregate("train_inner"), torch.autograd.profiler.record_function(
             "train_step-%d" % i
         ):
-            if args.subword_dropout:
+            if cfg.common.subword_dropout:
                 log_output = trainer.train_step_dropout(samples, tok_func)
             else:
                 log_output = trainer.train_step(samples)

@@ -5,6 +5,8 @@
 
 import logging
 import os
+import copy
+import numpy as np
 import warnings
 from argparse import Namespace
 from typing import Any, Callable, Dict, List
@@ -19,6 +21,8 @@ from omegaconf import DictConfig
 
 logger = logging.getLogger(__name__)
 
+use_cuda = torch.cuda.is_available()
+device   = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 class StatefulContainer(object):
 
@@ -447,32 +451,32 @@ class FairseqTask(object):
         )
 
 
-    def build_generator(self, args):
-        if getattr(args, 'score_reference', False):
-            from fairseq.sequence_scorer import SequenceScorer
-            return SequenceScorer(self.target_dictionary)
-        else:
-            from fairseq.sequence_generator import SequenceGenerator
-            return SequenceGenerator(
-                self.target_dictionary,
-                beam_size=getattr(args, 'beam', 5),
-                max_len_a=getattr(args, 'max_len_a', 0),
-                max_len_b=getattr(args, 'max_len_b', 200),
-                min_len=getattr(args, 'min_len', 1),
-                normalize_scores=(not getattr(args, 'unnormalized', False)),
-                len_penalty=getattr(args, 'lenpen', 1),
-                unk_penalty=getattr(args, 'unkpen', 0),
-                sampling=getattr(args, 'sampling', False),
-                sampling_topk=getattr(args, 'sampling_topk', -1),
-                sampling_topp=getattr(args, 'sampling_topp', -1.0),
-                temperature=getattr(args, 'temperature', 1.),
-                diverse_beam_groups=getattr(args, 'diverse_beam_groups', -1),
-                diverse_beam_strength=getattr(args, 'diverse_beam_strength', 0.5),
-                match_source_len=getattr(args, 'match_source_len', False),
-                no_repeat_ngram_size=getattr(args, 'no_repeat_ngram_size', 0),
-            )
+    # def build_generator(self, args):
+    #     if getattr(args, 'score_reference', False):
+    #         from fairseq.sequence_scorer import SequenceScorer
+    #         return SequenceScorer(self.target_dictionary)
+    #     else:
+    #         from fairseq.sequence_generator import SequenceGenerator
+    #         return SequenceGenerator(
+    #             self.target_dictionary,
+    #             beam_size=getattr(args, 'beam', 5),
+    #             max_len_a=getattr(args, 'max_len_a', 0),
+    #             max_len_b=getattr(args, 'max_len_b', 200),
+    #             min_len=getattr(args, 'min_len', 1),
+    #             normalize_scores=(not getattr(args, 'unnormalized', False)),
+    #             len_penalty=getattr(args, 'lenpen', 1),
+    #             unk_penalty=getattr(args, 'unkpen', 0),
+    #             sampling=getattr(args, 'sampling', False),
+    #             sampling_topk=getattr(args, 'sampling_topk', -1),
+    #             sampling_topp=getattr(args, 'sampling_topp', -1.0),
+    #             temperature=getattr(args, 'temperature', 1.),
+    #             diverse_beam_groups=getattr(args, 'diverse_beam_groups', -1),
+    #             diverse_beam_strength=getattr(args, 'diverse_beam_strength', 0.5),
+    #             match_source_len=getattr(args, 'match_source_len', False),
+    #             no_repeat_ngram_size=getattr(args, 'no_repeat_ngram_size', 0),
+    #         )
 
-    def get_dropout_batch(self, sample, model, criterion, optimizer, tok_func, task, ignore_grad=False): 
+    def get_dropout_batch(self, sample, model, criterion, optimizer, tok_func, task): 
 
         sample_dropped = copy.deepcopy(sample)
 
@@ -500,7 +504,8 @@ class FairseqTask(object):
         max_sequence = 0
         for b in batch_idx:
             sent = dictionary.string(b[(b != dictionary.pad()) & (b != dictionary.eos())])
-            sent = "".join(sent.split()).replace("▁", " ").strip()
+            # sent = "".join(sent.split()).replace("▁", " ").strip()
+            sent = sent.replace("@@ ", "").strip()
             tokens = tok_func(sent)
             droped_idx = [dictionary.index(x) for x in tokens]
             if len(droped_idx) > max_sequence:
@@ -508,7 +513,7 @@ class FairseqTask(object):
             droped_batch_idx.append(np.array(droped_idx))
 
             if not for_src:
-                droped_sent_idx = np.concatenate((adv_sent_idx, np.array([dictionary.eos()])),axis=0)
+                droped_sent_idx = np.concatenate((droped_idx, np.array([dictionary.eos()])),axis=0)
                 droped_tgt_idx.append(droped_sent_idx)
 
         droped_batch_idx = np.array(droped_batch_idx)

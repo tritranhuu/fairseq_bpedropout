@@ -636,6 +636,7 @@ class Trainer(object):
 
         # forward and backward pass
         logging_outputs, sample_size, ooms = [], 0, 0
+        dropout_samples = []
         for i, sample in enumerate(samples):  # delayed update loop
             sample, is_dummy_batch = self._prepare_sample(sample)
 
@@ -658,7 +659,7 @@ class Trainer(object):
                 with maybe_no_sync():
 
                     dropout_sample = self.task.get_dropout_batch(
-                          sample, self.model, self.criterion, self.optimizer, tok_func, self.task, ignore_grad
+                          sample, self.model, self.criterion, self.optimizer, tok_func, self.task
                     )
                     dropout_samples.append(dropout_sample)
                     self.zero_grad() 

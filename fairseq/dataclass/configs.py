@@ -962,4 +962,3 @@ class FairseqConfig(FairseqDataclass):
     scoring: Any = None
     bpe: Any = None
     tokenizer: Any = None
-    subword_dropout: Any = False
