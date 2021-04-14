@@ -12,6 +12,7 @@ import logging
 import math
 import os
 import sys
+
 from typing import Dict, Optional, Any, List, Tuple, Callable
 
 import numpy as np
@@ -23,6 +24,8 @@ from fairseq import (
     tasks,
     utils,
 )
+
+from fairseq.data.bpe import load_subword_nmt_table, BpeOnlineTokenizer
 from fairseq.data import iterators
 from fairseq.data.plasma_utils import PlasmaStore
 from fairseq.dataclass.configs import FairseqConfig
@@ -55,7 +58,7 @@ def collocation_dropout(s: str, drop_rate: float = 0.1):
                 chars[i] = " "
     return "".join(chars)
 
-def get_tokenizer(model_path: str, alpha: float=0.1, n_best: int=64, collo_drop_rate=None):
+def get_sentencepiece_tokenizer(model_path: str, alpha: float=0.1, n_best: int=64, collo_drop_rate=None):
     """
     Get sentencepiece(unigram) typed tokenize function for a string as input
 
@@ -72,15 +75,38 @@ def get_tokenizer(model_path: str, alpha: float=0.1, n_best: int=64, collo_drop_
                                     nbest_size=n_best)
     return tok_func
 
+def get_bpe_tokenize(code_path: str, alpha: float = 0.1, collo_drop_rate = None):
+    """
+    Get bpe-typed tokenize function with a dropout rate for a string as input
+
+    :param code_path: path to bpe.codes file
+    :param alpha: dropout rate
+    :return:
+        - tok_func: tokenize function
+    """
+    merge_table = load_subword_nmt_table(code_path)
+    subword_nmt_tokenizer = BpeOnlineTokenizer(
+        bpe_dropout_rate=alpha,
+        merge_table=merge_table)
+    tok_func = lambda s: subword_nmt_tokenizer(collocation_dropout(s, collo_drop_rate),
+                                sentinels=['', '</w>'],
+                                regime='end',
+                                bpe_symbol='@@').split()
+    return tok_func
+
 def main(cfg: FairseqConfig) -> None:
     if isinstance(cfg, argparse.Namespace):
         cfg = convert_namespace_to_omegaconf(cfg)
 
     utils.import_user_module(cfg.common)
-    if cfg.subword_dropout:
+    if cfg.common.subword_dropout:
         print("| training with on-the-fly")
         print("| initializing tokenizer")
-        tok_func = get_tokenizer(model_path=cfg.sp_model, alpha=cfg.alpha, collo_drop_rate=cfg.collo_drop)
+        if cfg.common.subword_transform == "subword-nmt":
+            tok_func = get_bpe_tokenizer(model_path=cfg.common.code_path, alpha=cfg.common.alpha, collo_drop_rate=cfg.common.collo_drop)
+        else:
+            tok_func = get_sentencepiece_tokenizer(model_path=cfg.common.code_path, alpha=cfg.common.alpha, collo_drop_rate=cfg.common.collo_drop)
+        
     else:
         tok_func = None
 

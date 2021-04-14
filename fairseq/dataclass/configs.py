@@ -202,10 +202,15 @@ class CommonConfig(FairseqDataclass):
         metadata={"help": "Training with subword dropout or not"}
     )
 
-    spm_path: Optional[str] = field(
+    subword_transform: str = field(
+        default='subword-nmt', 
+        metadata={"help": "frame word type"}
+    )
+
+    code_path: Optional[str] = field(
         default=None,
         metadata={
-            "help": "path to sentencepiece model"
+            "help": "path to subword model"
         },
     )
 
@@ -957,3 +962,4 @@ class FairseqConfig(FairseqDataclass):
     scoring: Any = None
     bpe: Any = None
     tokenizer: Any = None
+    subword_dropout: Any = False
