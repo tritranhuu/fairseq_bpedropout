@@ -198,10 +198,11 @@ class CommonConfig(FairseqDataclass):
     )
 
     subword_dropout: bool = field(
-        default=False, metadata={"help": "Training with subword dropout or not"}
+        default=False, 
+        metadata={"help": "Training with subword dropout or not"}
     )
 
-    spm_path: str = field(
+    spm_path: Optional[str] = field(
         default=None,
         metadata={
             "help": "path to sentencepiece model"
@@ -215,7 +216,9 @@ class CommonConfig(FairseqDataclass):
         },
     )
 
-    collo_drop: float = field(default=0.0, metadata={
+    collo_drop: float = field(
+        default=0.0, 
+        metadata={
         "help": "collocation dropout rate"
         })
 
