@@ -503,9 +503,8 @@ class FairseqTask(object):
 
         max_sequence = 0
         for b in batch_idx:
-            sent = dictionary.string(b[(b != dictionary.pad()) & (b != dictionary.eos())])
-            # sent = "".join(sent.split()).replace("▁", " ").strip()
-            sent = sent.replace("@@ ", "").strip()
+            sent = dictionary.string(b[(b != dictionary.pad()) & (b != dictionary.eos()) & (b != dictionary.bos()) & (b != dictionary.unk())])
+            
             tokens = tok_func(sent)
             droped_idx = [dictionary.index(x) for x in tokens]
             if len(droped_idx) > max_sequence:

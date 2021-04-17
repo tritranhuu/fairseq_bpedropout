@@ -13,6 +13,7 @@ import math
 import os
 import sys
 
+import random
 from typing import Dict, Optional, Any, List, Tuple, Callable
 
 import numpy as np
@@ -47,15 +48,26 @@ logging.basicConfig(
 )
 logger = logging.getLogger("fairseq_cli.train")
 
+import regex as re
+
+pattern = re.compile(r'([\p{IsHan}\p{IsBopo}\p{IsHira}\p{IsKatakana}]+)', re.UNICODE)
+
+
 def collocation_dropout(s: str, drop_rate: float = 0.1):
 
     if drop_rate is None:
         return s
-    chars = list(s)
-    for i, c in enumerate(chars):
-        if c == "_" and chars[i-1] != " ":
-            if random.random() < drop_rate:
-                chars[i] = " "
+    if pattern.match(s) is None:
+        chars = list(s)
+        for i, c in enumerate(chars):
+            if c == "_" and chars[i-1] != " ":
+                if random.random() < drop_rate:
+                    chars[i] = " "
+    else:
+        for i, c in enumerate(chars):
+            if c == "_":
+                if random.random() < drop_rate:
+                    chars[i] = ""
     return "".join(chars)
 
 def get_sentencepiece_tokenizer(model_path: str, alpha: float=0.1, n_best: int=64, collo_drop_rate=None):
@@ -68,7 +80,7 @@ def get_sentencepiece_tokenizer(model_path: str, alpha: float=0.1, n_best: int=6
 
     """
     sp = spm.SentencePieceProcessor(model_file=model_path)
-    tok_func = lambda s:  sp.encode(collocation_dropout(s, collo_drop_rate),
+    tok_func = lambda s:  sp.encode(collocation_dropout("".join(s.split()).replace("▁", " ").strip(), collo_drop_rate),
                                     out_type=str,
                                     enable_sampling=True,
                                     alpha=alpha,
@@ -88,7 +100,7 @@ def get_bpe_tokenizer(model_path: str, alpha: float = 0.1, collo_drop_rate = Non
     subword_nmt_tokenizer = BpeOnlineTokenizer(
         bpe_dropout_rate=alpha,
         merge_table=merge_table)
-    tok_func = lambda s: subword_nmt_tokenizer(collocation_dropout(s, collo_drop_rate),
+    tok_func = lambda s: subword_nmt_tokenizer(collocation_dropout(s.replace("@@ ", "").strip(), collo_drop_rate),
                                 sentinels=['', '</w>'],
                                 regime='end',
                                 bpe_symbol='@@').split()
